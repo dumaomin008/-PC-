@@ -9,8 +9,10 @@ import {
   IdCard, FileBadge, Image as ImageIcon, Eye, ShieldAlert,
   CalendarDays, FileCheck, XCircle,
   MapPin, Truck, UserCog,
-  CheckCircle, ShieldX, RefreshCw
+  CheckCircle, ShieldX, RefreshCw,
+  LayoutDashboard, Settings, PieChart
 } from 'lucide-react';
+import HomeDashboard from './HomeDashboard.jsx';
 
 export default function App() {
   const [viewMode, setViewMode] = useState('list');
@@ -21,6 +23,8 @@ export default function App() {
   const [activeWaybillDriver, setActiveWaybillDriver] = useState(null);
   const [activeCardFilter, setActiveCardFilter] = useState(null);
   const [resetPwdDriver, setResetPwdDriver] = useState(null);
+  const [activeNav, setActiveNav] = useState('driver_management');
+  const [expandedParent, setExpandedParent] = useState('driver_archive');
 
   // 全新高维度搜索状态
   const [filters, setFilters] = useState({
@@ -434,18 +438,265 @@ export default function App() {
     );
   };
 
+  const navGroups = [
+    { id: 'home', title: '首页', icon: LayoutDashboard, children: [] },
+    {
+      id: 'transport',
+      title: '运输管理',
+      icon: Truck,
+      children: [
+        { id: 'plan_management', label: '计划管理' },
+        { id: 'plan_audit', label: '计划审核' },
+        { id: 'waybill_management', label: '运单管理' },
+      ],
+    },
+    {
+      id: 'in_transit',
+      title: '在途管理',
+      icon: Truck,
+      children: [
+        { id: 'leaderboard_audit', label: '榜单审核' },
+        { id: 'fee_audit', label: '费用审核' },
+        { id: 'event_records', label: '事件记录' },
+      ],
+    },
+    {
+      id: 'settlement',
+      title: '结算中心',
+      icon: FileText,
+      children: [
+        { id: 'waybill_data_correction', label: '运单数据修正' },
+        { id: 'customer_settlement_management', label: '客户结算管理' },
+        { id: 'driver_settlement_management', label: '司机结算管理' },
+      ],
+    },
+    {
+      id: 'safety',
+      title: '安全管理',
+      icon: ShieldAlert,
+      children: [
+        { id: 'doc_issuing_management', label: '发文管理' },
+        { id: 'accident_reporting', label: '事故上报' },
+        { id: 'accident_archive', label: '事故档案' },
+        { id: 'violation_events', label: '违规事件' },
+      ],
+    },
+    {
+      id: 'driver_archive',
+      title: '司机档案',
+      icon: Users,
+      children: [
+        { id: 'driver_management', label: '司机管理' },
+        { id: 'driver_authentication', label: '司机认证' },
+        { id: 'shift_records', label: '交班记录' },
+      ],
+    },
+    {
+      id: 'vehicle_archive',
+      title: '车辆档案',
+      icon: Car,
+      children: [{ id: 'vehicle_management', label: '车辆管理' }],
+    },
+    {
+      id: 'statistics',
+      title: '统计中心',
+      icon: PieChart,
+      children: [
+        { id: 'daily_transport_data', label: '日运输数据统计' },
+        { id: 'daily_revenue_data', label: '日营收数据统计' },
+      ],
+    },
+    {
+      id: 'customer_management',
+      title: '客户管理',
+      icon: UserPlus,
+      children: [
+        { id: 'customer_list', label: '客户管理' },
+        { id: 'address_management', label: '地址管理' },
+        { id: 'route_management', label: '路线管理' },
+        { id: 'contract_management', label: '合同管理' },
+      ],
+    },
+    {
+      id: 'strategy_configuration',
+      title: '策略配置',
+      icon: Settings,
+      children: [
+        { id: 'driver_settlement_rules', label: '司机结算规则' },
+        { id: 'customer_settlement_rules', label: '客户结算规则' },
+      ],
+    },
+    {
+      id: 'fleet_ecology',
+      title: '车队生态',
+      icon: FileText,
+      children: [{ id: 'fleet_management', label: '车队管理' }],
+    },
+    {
+      id: 'organization_structure',
+      title: '组织架构',
+      icon: Users,
+      children: [
+        { id: 'department_management', label: '部门管理' },
+        { id: 'role_management', label: '岗位管理' },
+      ],
+    },
+    {
+      id: 'basic_info',
+      title: '基本信息',
+      icon: FileBadge,
+      children: [{ id: 'category_management', label: '品类管理' }],
+    },
+    {
+      id: 'system_management',
+      title: '系统管理',
+      icon: Settings,
+      children: [
+        { id: 'user_management', label: '用户管理' },
+        { id: 'role_management_sys', label: '角色管理' },
+        { id: 'menu_management', label: '菜单管理' },
+        { id: 'dictionary_management', label: '字典管理' },
+        { id: 'audit_configuration', label: '审核配置' },
+      ],
+    },
+  ];
+
+  const activeModule = useMemo(() => {
+    for (const group of navGroups) {
+      const child = group.children?.find((c) => c.id === activeNav);
+      if (child) return { parent: group.title, child: child.label, key: child.id };
+      if (group.id === activeNav) return { parent: group.title, child: null, key: group.id };
+    }
+    return null;
+  }, [activeNav, navGroups]);
+
   return (
-    <div className="w-[1920px] min-h-[1080px] bg-[#f4f7fa] p-10 font-sans text-slate-800 relative overflow-hidden mx-auto shadow-[0_0_100px_rgba(0,0,0,0.1)] ring-1 ring-slate-900/5">
+    <div className="min-h-[1080px] bg-[#f4f7fa] p-10 font-sans text-slate-800 relative overflow-x-hidden mx-auto shadow-[0_0_100px_rgba(0,0,0,0.1)] ring-1 ring-slate-900/5">
       <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-indigo-200/40 rounded-full blur-[150px] pointer-events-none"></div>
 
-      <div className="max-w-[1720px] mx-auto space-y-10 relative z-10">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-5">
-            <div className="w-16 h-16 bg-white rounded-3xl shadow-sm border border-slate-100 flex items-center justify-center overflow-hidden"><Users className="w-8 h-8 text-indigo-600" /></div>
-            <div><h1 className="text-3xl font-black text-slate-800 tracking-tight">运力档案管理中心</h1><p className="text-sm font-black text-slate-400 mt-1 uppercase tracking-widest">Fleet Compliance & Efficiency Hub</p></div>
+      <div className="relative z-10 flex gap-8 items-start max-w-[1920px] mx-auto">
+        <aside className="w-[272px] shrink-0 bg-white/90 backdrop-blur-xl rounded-[2.5rem] border border-white shadow-xl shadow-slate-200/50 p-6 sticky top-8 self-start">
+          <div className="flex items-center gap-4 mb-8 pb-6 border-b border-slate-100">
+            <div className="w-14 h-14 bg-gradient-to-br from-indigo-600 to-indigo-500 rounded-[1.25rem] shadow-lg shadow-indigo-200/60 flex items-center justify-center text-white border border-indigo-400/30">
+              <LayoutDashboard className="w-7 h-7" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Fleet OS</p>
+              <p className="text-base font-black text-slate-800 tracking-tight truncate">擎车联</p>
+            </div>
           </div>
-          <button type="button" onClick={() => setIsAddModalOpen(true)} className="flex items-center gap-3 bg-slate-900 text-white px-8 py-4 rounded-[1.5rem] hover:bg-indigo-600 transition-all font-black text-sm shadow-xl shadow-slate-900/10 hover:-translate-y-1"><Plus className="w-6 h-6" /><span>新增司机档案</span></button>
-        </div>
+          <nav className="space-y-4" aria-label="主导航">
+            {navGroups.map((group) => {
+              const children = group.children ?? [];
+              const isGroupActive = children.some((c) => c.id === activeNav);
+              const isExpanded = expandedParent === group.id;
+              const hasChildren = children.length > 0;
+              const Icon = group.icon;
+
+              return (
+                <div key={group.id}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!hasChildren) {
+                        setActiveNav(group.id);
+                        return;
+                      }
+                      setExpandedParent((prev) => (prev === group.id ? '' : group.id));
+                      setActiveNav(children[0]?.id ?? group.id);
+                    }}
+                    className={`w-full flex items-center justify-between gap-3 px-4 py-3.5 rounded-2xl text-left text-[13px] font-black tracking-tight transition-all duration-200 border
+                      ${isGroupActive || (!hasChildren && activeNav === group.id)
+                        ? 'bg-indigo-50 text-indigo-700 border-indigo-100 shadow-sm shadow-indigo-100/50'
+                        : 'text-slate-500 border-transparent hover:bg-slate-50 hover:text-slate-800 hover:border-slate-100'
+                      }`}
+                  >
+                    <span className="flex items-center gap-3 min-w-0">
+                      <span
+                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border transition-colors
+                          ${isGroupActive || (!hasChildren && activeNav === group.id)
+                            ? 'bg-white border-indigo-100 text-indigo-600'
+                            : 'bg-slate-50 border-slate-100 text-slate-400'
+                          }`}
+                      >
+                        <Icon className="w-[18px] h-[18px]" />
+                      </span>
+                      <span className="truncate">{group.title}</span>
+                    </span>
+                    {hasChildren ? (
+                      <ChevronDown
+                        className={`w-4 h-4 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''} ${
+                          isGroupActive ? 'text-indigo-500' : ''
+                        }`}
+                      />
+                    ) : null}
+                  </button>
+
+                  {hasChildren ? (
+                    <div
+                      className={`grid transition-all duration-300 ease-out ${
+                        isExpanded ? 'grid-rows-[1fr] opacity-100 mt-2' : 'grid-rows-[0fr] opacity-0 mt-0'
+                      }`}
+                    >
+                      <div className="overflow-hidden">
+                        <ul className="space-y-2.5 border-l-2 border-indigo-100/80 ml-6 pl-4 pr-1 py-2">
+                          {children.map((child, idx) => {
+                            const isActive = activeNav === child.id;
+                            return (
+                              <li
+                                key={child.id}
+                                className={`transition-all duration-300 ${isExpanded ? 'translate-y-0 opacity-100' : '-translate-y-1 opacity-0'}`}
+                                style={{ transitionDelay: `${Math.min(idx * 35, 180)}ms` }}
+                              >
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveNav(child.id)}
+                                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-left text-[12.5px] font-black tracking-tight transition-all duration-200 border
+                                    ${isActive
+                                      ? 'bg-gradient-to-r from-indigo-50 to-indigo-50/30 border-indigo-200/80 text-indigo-700 shadow-sm shadow-indigo-100/40'
+                                      : 'bg-white/60 text-slate-500 border-transparent hover:bg-slate-50 hover:text-slate-800 hover:border-slate-100'
+                                    }`}
+                                >
+                                  <span className={`relative h-2.5 w-2.5 rounded-full transition-all ${isActive ? 'bg-indigo-500 shadow-[0_0_0_4px_rgba(99,102,241,0.12)]' : 'bg-slate-300'}`} />
+                                  <span className="truncate">{child.label}</span>
+                                </button>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+          </nav>
+          <div className="mt-8 pt-6 border-t border-slate-100">
+            <div className="rounded-2xl bg-slate-50/80 border border-slate-100 p-4 shadow-inner">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">当前模块</p>
+              <p className="text-sm font-black text-slate-700">
+                {activeModule
+                  ? activeModule.child
+                    ? `${activeModule.parent} / ${activeModule.child}`
+                    : activeModule.parent
+                  : '—'}
+              </p>
+            </div>
+          </div>
+        </aside>
+
+        <div className="flex-1 min-w-0 space-y-10">
+          {activeNav === 'home' ? (
+            <HomeDashboard />
+          ) : (
+            <>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-5">
+                  <div className="w-16 h-16 bg-white rounded-3xl shadow-sm border border-slate-100 flex items-center justify-center overflow-hidden"><Users className="w-8 h-8 text-indigo-600" /></div>
+                  <div><h1 className="text-3xl font-black text-slate-800 tracking-tight">司机管理中心</h1><p className="text-sm font-black text-slate-400 mt-1 uppercase tracking-widest">Fleet Compliance & Efficiency Hub</p></div>
+                </div>
+                <button type="button" onClick={() => setIsAddModalOpen(true)} className="flex items-center gap-3 bg-slate-900 text-white px-8 py-4 rounded-[1.5rem] hover:bg-indigo-600 transition-all font-black text-sm shadow-xl shadow-slate-900/10 hover:-translate-y-1"><Plus className="w-6 h-6" /><span>新增司机档案</span></button>
+              </div>
 
         <div className="space-y-8">
           <div className="flex gap-8">
@@ -469,7 +720,6 @@ export default function App() {
                 </div>
              </div>
           </div>
-        </div>
 
         {activeCardFilter && (
            <div className="bg-indigo-600 text-white rounded-[1.5rem] p-5 flex items-center justify-between shadow-xl shadow-indigo-200/50 animate-in fade-in slide-in-from-top-4">
@@ -612,6 +862,10 @@ export default function App() {
               </div>
             )}
           </div>
+        </div>
+            </>
+          )}
+      </div>
       </div>
 
       {/* 📦 批量审核控制台 */}
