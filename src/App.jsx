@@ -13,6 +13,7 @@ import {
   LayoutDashboard, Settings, PieChart
 } from 'lucide-react';
 import HomeDashboard from './HomeDashboard.jsx';
+import DailyStatsDashboard from './DailyStatsDashboard.jsx';
 
 export default function App() {
   const [viewMode, setViewMode] = useState('list');
@@ -23,8 +24,8 @@ export default function App() {
   const [activeWaybillDriver, setActiveWaybillDriver] = useState(null);
   const [activeCardFilter, setActiveCardFilter] = useState(null);
   const [resetPwdDriver, setResetPwdDriver] = useState(null);
-  const [activeNav, setActiveNav] = useState('driver_management');
-  const [expandedParent, setExpandedParent] = useState('driver_archive');
+  const [activeNav, setActiveNav] = useState('home');
+  const [expandedParent, setExpandedParent] = useState('');
 
   // 全新高维度搜索状态
   const [filters, setFilters] = useState({
@@ -570,6 +571,25 @@ export default function App() {
     return null;
   }, [activeNav, navGroups]);
 
+  const PlaceholderPage = () => (
+    <div className="bg-white/90 backdrop-blur-xl border border-white rounded-[2.5rem] shadow-xl shadow-slate-200/50 p-12 min-h-[520px] flex items-center justify-center">
+      <div className="max-w-xl text-center">
+        <div className="w-16 h-16 mx-auto mb-5 rounded-3xl bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-sm">
+          <LayoutDashboard className="w-8 h-8" />
+        </div>
+        <h2 className="text-2xl font-black text-slate-800 tracking-tight">模块建设中</h2>
+        <p className="text-sm font-bold text-slate-400 mt-3">
+          {activeModule
+            ? `当前菜单：${activeModule.child ? `${activeModule.parent} / ${activeModule.child}` : activeModule.parent}`
+            : '当前菜单'}
+        </p>
+        <p className="text-[13px] font-bold text-slate-500 mt-2">
+          该页面暂未接入业务内容，后续可按同一风格快速扩展。
+        </p>
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-[1080px] bg-[#f4f7fa] p-10 font-sans text-slate-800 relative overflow-x-hidden mx-auto shadow-[0_0_100px_rgba(0,0,0,0.1)] ring-1 ring-slate-900/5">
       <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-indigo-200/40 rounded-full blur-[150px] pointer-events-none"></div>
@@ -688,6 +708,12 @@ export default function App() {
         <div className="flex-1 min-w-0 space-y-10">
           {activeNav === 'home' ? (
             <HomeDashboard />
+          ) : activeNav === 'daily_transport_data' ? (
+            <DailyStatsDashboard mode="transport" />
+          ) : activeNav === 'daily_revenue_data' ? (
+            <DailyStatsDashboard mode="revenue" />
+          ) : activeNav !== 'driver_management' ? (
+            <PlaceholderPage />
           ) : (
             <>
               <div className="flex items-center justify-between">

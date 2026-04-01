@@ -518,7 +518,11 @@ export default function HomeDashboard() {
 
   // 司机红黑榜数据（前5名和后5名）
   const topDrivers = mock.driverLeaderboard?.slice(0, 5) || [];
-  const bottomDrivers = mock.driverLeaderboard?.slice(-5).reverse() || [];
+  const bottomDrivers = (mock.driverLeaderboard || [])
+    .slice()
+    .reverse()
+    .filter((d) => !topDrivers.some((t) => t.id === d.id))
+    .slice(0, 5);
 
   // 核心线路利润排行数据
   const topRoutes = mock.routeProfitRanking?.slice(0, 5) || [];
@@ -549,7 +553,7 @@ export default function HomeDashboard() {
 
   const driverRows = useMemo(() => {
     const rows = (selectedFleet?.drivers ?? []).map((d) => {
-      const revenue = d.revenue[period];
+      const revenue = d.revenue[currentPeriod] ?? 0;
       const totalCost = sum(d.cost);
       const profit = revenue - totalCost;
       return {
@@ -558,12 +562,12 @@ export default function HomeDashboard() {
         revenue,
         cost: totalCost,
         profit,
-        waybills: d.waybills[period],
+        waybills: d.waybills[currentPeriod] ?? 0,
         breakdown: d.cost,
       };
     });
     return rows.sort((a, b) => b.revenue - a.revenue);
-  }, [selectedFleet, period]);
+  }, [selectedFleet, currentPeriod]);
 
   const handleFleetDrillDown = (fleetId) => {
     setSelectedFleetId(fleetId);
@@ -598,7 +602,7 @@ export default function HomeDashboard() {
   }, [mock]);
 
   // 司机红黑榜组件
-  const DriverLeaderboard = ({ title, drivers, isTop }) => (
+  const DriverLeaderboard = ({ title, drivers, isTop, boardKey }) => (
     <div className="bg-white/90 backdrop-blur-xl border border-white rounded-[2.5rem] shadow-xl shadow-slate-200/50 p-8 relative z-10">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -628,7 +632,7 @@ export default function HomeDashboard() {
             className="relative flex items-center justify-between p-4 rounded-[1.75rem] bg-slate-50/70 border border-slate-100 transition-all duration-300 cursor-pointer hover:bg-slate-50 hover:shadow-md"
             onMouseEnter={() => {
               // 确保只显示当前卡片的近期运单列表
-              setHoveredDriver(driver.id);
+              setHoveredDriver(`${boardKey}-${driver.id}`);
               setHoveredRoute(null);
             }}
             onMouseLeave={() => setHoveredDriver(null)}
@@ -652,8 +656,8 @@ export default function HomeDashboard() {
             </div>
             
             {/* 鼠标移入时显示的运单数据列表 */}
-            {hoveredDriver === driver.id && (
-              <div className="absolute bottom-full right-0 mb-2 w-80 bg-white rounded-[1.75rem] shadow-xl shadow-slate-200/80 border border-slate-100 p-4 z-500">
+            {hoveredDriver === `${boardKey}-${driver.id}` && (
+              <div className="absolute bottom-full right-0 mb-2 w-80 bg-white rounded-[1.75rem] shadow-xl shadow-slate-200/80 border border-slate-100 p-4 z-50">
                 <div className="text-[12px] font-black text-slate-700 mb-3">近期运单</div>
                 <div className="space-y-3">
                   {driver.waybillList.map(waybill => (
@@ -730,7 +734,7 @@ export default function HomeDashboard() {
             
             {/* 鼠标移入时显示的线路数据列表 */}
             {hoveredRoute === route.id && (
-              <div className="absolute bottom-full right-0 mb-2 w-80 bg-white rounded-[1.75rem] shadow-xl shadow-slate-200/80 border border-slate-100 p-4 z-500">
+              <div className="absolute bottom-full right-0 mb-2 w-80 bg-white rounded-[1.75rem] shadow-xl shadow-slate-200/80 border border-slate-100 p-4 z-50">
                 <div className="text-[12px] font-black text-slate-700 mb-3">近期运单</div>
                 <div className="space-y-3">
                   {route.waybillList.map(waybill => (
@@ -1061,7 +1065,7 @@ export default function HomeDashboard() {
               自定义
             </button>
             {showCustomDatePicker && (
-              <div className="absolute top-full right-0 mt-2 bg-white rounded-2xl shadow-xl shadow-slate-200/50 p-4 w-80 z-500">
+              <div className="absolute top-full right-0 mt-2 bg-white rounded-2xl shadow-xl shadow-slate-200/50 p-4 w-80 z-50 border border-slate-100">
                 <div className="space-y-4">
                   <div>
                     <label className="block text-xs font-black text-slate-500 mb-2">开始日期</label>
@@ -1142,8 +1146,8 @@ export default function HomeDashboard() {
       {/* 司机红黑榜和核心线路利润排行 */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <div className="xl:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
-          <DriverLeaderboard title="司机红榜" drivers={topDrivers} isTop={true} />
-          <DriverLeaderboard title="司机黑榜" drivers={bottomDrivers} isTop={false} />
+          <DriverLeaderboard title="司机红榜" drivers={topDrivers} isTop={true} boardKey="top" />
+          <DriverLeaderboard title="司机黑榜" drivers={bottomDrivers} isTop={false} boardKey="bottom" />
         </div>
         <RouteProfitRanking />
       </div>
