@@ -13,7 +13,8 @@ import {
   LayoutDashboard, Settings, PieChart
 } from 'lucide-react';
 import HomeDashboard from './HomeDashboard.jsx';
-import DailyStatsDashboard from './DailyStatsDashboard.jsx';
+import DailyTransportDashboard from './DailyTransportDashboard.jsx';
+import DailyRevenueDashboard from './DailyRevenueDashboard.jsx';
 
 export default function App() {
   const [viewMode, setViewMode] = useState('list');
@@ -709,9 +710,9 @@ export default function App() {
           {activeNav === 'home' ? (
             <HomeDashboard />
           ) : activeNav === 'daily_transport_data' ? (
-            <DailyStatsDashboard mode="transport" />
+            <DailyTransportDashboard />
           ) : activeNav === 'daily_revenue_data' ? (
-            <DailyStatsDashboard mode="revenue" />
+            <DailyRevenueDashboard />
           ) : activeNav !== 'driver_management' ? (
             <PlaceholderPage />
           ) : (

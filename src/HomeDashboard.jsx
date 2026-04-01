@@ -629,35 +629,38 @@ export default function HomeDashboard() {
         {drivers.map((driver, index) => (
           <div 
             key={driver.id} 
-            className="relative flex items-center justify-between p-4 rounded-[1.75rem] bg-slate-50/70 border border-slate-100 transition-all duration-300 cursor-pointer hover:bg-slate-50 hover:shadow-md"
+            className="relative"
             onMouseEnter={() => {
-              // 确保只显示当前卡片的近期运单列表
               setHoveredDriver(`${boardKey}-${driver.id}`);
               setHoveredRoute(null);
             }}
             onMouseLeave={() => setHoveredDriver(null)}
-            onClick={() => {
-              setSelectedDriver(driver);
-              setShowDriverModal(true);
-            }}
           >
-            <div className="flex items-center gap-4">
-              <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-lg ${isTop ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
-                {index + 1}
+            <div 
+              className="flex items-center justify-between p-4 rounded-[1.75rem] bg-slate-50/70 border border-slate-100 transition-all duration-300 cursor-pointer hover:bg-slate-50 hover:shadow-md"
+              onClick={() => {
+                setSelectedDriver(driver);
+                setShowDriverModal(true);
+              }}
+            >
+              <div className="flex items-center gap-4">
+                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-lg ${isTop ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                  {index + 1}
+                </div>
+                <div>
+                  <div className="text-[14px] font-black text-slate-800">{driver.name}</div>
+                  <div className="text-[11px] font-bold text-slate-400">{driver.fleet}</div>
+                </div>
               </div>
-              <div>
-                <div className="text-[14px] font-black text-slate-800">{driver.name}</div>
-                <div className="text-[11px] font-bold text-slate-400">{driver.fleet}</div>
+              <div className="text-right">
+                <div className="text-[16px] font-black text-slate-800">{driver.waybills} 单</div>
+                <div className="text-[11px] font-bold text-slate-400">{formatCNY(driver.revenue)}</div>
               </div>
-            </div>
-            <div className="text-right">
-              <div className="text-[16px] font-black text-slate-800">{driver.waybills} 单</div>
-              <div className="text-[11px] font-bold text-slate-400">{formatCNY(driver.revenue)}</div>
             </div>
             
             {/* 鼠标移入时显示的运单数据列表 */}
             {hoveredDriver === `${boardKey}-${driver.id}` && (
-              <div className="absolute bottom-full right-0 mb-2 w-80 bg-white rounded-[1.75rem] shadow-xl shadow-slate-200/80 border border-slate-100 p-4 z-50">
+              <div className="absolute bottom-full left-0 right-0 mb-2 w-80 bg-white rounded-[1.75rem] shadow-xl shadow-slate-200/80 border border-slate-100 p-4 z-50 ml-auto mr-0">
                 <div className="text-[12px] font-black text-slate-700 mb-3">近期运单</div>
                 <div className="space-y-3">
                   {driver.waybillList.map(waybill => (
@@ -707,34 +710,37 @@ export default function HomeDashboard() {
         {topRoutes.map((route, index) => (
           <div 
             key={route.id} 
-            className="relative flex items-center justify-between p-4 rounded-[1.75rem] bg-slate-50/70 border border-slate-100 transition-all duration-300 cursor-pointer hover:bg-slate-50 hover:shadow-md"
+            className="relative"
             onMouseEnter={() => {
-              // 确保只显示当前卡片的近期运单列表
               setHoveredRoute(route.id);
               setHoveredDriver(null);
             }}
             onMouseLeave={() => setHoveredRoute(null)}
-            onClick={() => {
-              setSelectedRoute(route);
-              setShowRouteModal(true);
-            }}
           >
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-2xl flex items-center justify-center font-black text-lg bg-indigo-100 text-indigo-700">
-                {index + 1}
+            <div 
+              className="flex items-center justify-between p-4 rounded-[1.75rem] bg-slate-50/70 border border-slate-100 transition-all duration-300 cursor-pointer hover:bg-slate-50 hover:shadow-md"
+              onClick={() => {
+                setSelectedRoute(route);
+                setShowRouteModal(true);
+              }}
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-2xl flex items-center justify-center font-black text-lg bg-indigo-100 text-indigo-700">
+                  {index + 1}
+                </div>
+                <div>
+                  <div className="text-[14px] font-black text-slate-800">{route.name}</div>
+                  <div className="text-[11px] font-bold text-slate-400">{route.waybills} 单</div>
+                </div>
               </div>
-              <div>
-                <div className="text-[14px] font-black text-slate-800">{route.name}</div>
-                <div className="text-[11px] font-bold text-slate-400">{route.waybills} 单</div>
+              <div className="text-right">
+                <div className="text-[16px] font-black text-emerald-600">{formatCNY(route.profit)}</div>
               </div>
-            </div>
-            <div className="text-right">
-              <div className="text-[16px] font-black text-emerald-600">{formatCNY(route.profit)}</div>
             </div>
             
             {/* 鼠标移入时显示的线路数据列表 */}
             {hoveredRoute === route.id && (
-              <div className="absolute bottom-full right-0 mb-2 w-80 bg-white rounded-[1.75rem] shadow-xl shadow-slate-200/80 border border-slate-100 p-4 z-50">
+              <div className="absolute bottom-full left-0 right-0 mb-2 w-80 bg-white rounded-[1.75rem] shadow-xl shadow-slate-200/80 border border-slate-100 p-4 z-50 ml-auto mr-0">
                 <div className="text-[12px] font-black text-slate-700 mb-3">近期运单</div>
                 <div className="space-y-3">
                   {route.waybillList.map(waybill => (
