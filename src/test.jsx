@@ -23,7 +23,7 @@ export default function App() {
   // --------------------------------------------------------
   const [mockVehicles, setMockVehicles] = useState([
     {
-      id: "1", isFavorite: true, plate: "皖A233363", source: "自有", type: "挂车",
+      id: "1", isFavorite: true, plate: "皖A233363", source: "自有", type: "挂车", projectCompany: "项目一公司",
       vin: "HCCB3DDW6R2046082", engineNo: "标配侧翻", status: "driving",
       driverName: "汪一波", driverPhone: "137****2345", driverId: "YQ20260320000104",
       annualExpiry: "2026-03-19", transportCertExpiry: "2026-05-12", insuranceExpiry: "2026-08-20",
@@ -37,7 +37,7 @@ export default function App() {
       waybills: [{ id: "YD20260320000104", status: "待装车", project: "项目一公司", isReturn: "散耗", mileage: "预计运输里程120 km", time: "2026-03-24 09:31", from: "巢湖中联水泥有限公司", fromAddr: "安徽省合肥市肥东县巢湖市槐林镇...", to: "南京中联水泥有限公司", toAddr: "江苏省南京市江宁区江苏省南京市..." }]
     },
     {
-      id: "2", isFavorite: false, plate: "皖A12138", source: "外调", type: "牵引车",
+      id: "2", isFavorite: false, plate: "皖A12138", source: "外调", type: "牵引车", projectCompany: "项目二公司",
       vin: "HCCB3DDW6R2046082", engineNo: "奔驰 (极光底盘)", status: "idle",
       driverName: "李师傅", driverPhone: "139****5678", driverId: "-",
       annualExpiry: "2026-03-19", transportCertExpiry: "2026-04-10", insuranceExpiry: "2026-11-05",
@@ -45,7 +45,7 @@ export default function App() {
       waybills: []
     },
     {
-      id: "3", isFavorite: true, plate: "皖A233363", source: "外采二手", type: "挂车",
+      id: "3", isFavorite: true, plate: "皖A233363", source: "外采二手", type: "挂车", projectCompany: "项目一公司",
       vin: "HCCB3DDW6R2046082", engineNo: "标配侧翻", status: "driving",
       driverName: "王大拿", driverPhone: "138****9999", driverId: "YQ20260320000104",
       annualExpiry: "2026-03-19", transportCertExpiry: "2026-06-30", insuranceExpiry: "2026-09-15",
@@ -53,7 +53,7 @@ export default function App() {
       waybills: []
     },
     {
-      id: "4", isFavorite: false, plate: "皖A12138", source: "外调", type: "牵引车",
+      id: "4", isFavorite: false, plate: "皖A12138", source: "外调", type: "牵引车", projectCompany: "项目三公司",
       vin: "HCCB3DDW6R2046082", engineNo: "奔驰 (极光底盘)", status: "offline",
       driverName: "-", driverPhone: "-", driverId: "-",
       annualExpiry: "2026-03-19", transportCertExpiry: "2026-03-19", insuranceExpiry: "2026-03-19",
@@ -77,7 +77,7 @@ export default function App() {
   });
 
   const toggleFavorite = (id, e) => { e.stopPropagation(); setMockVehicles(prev => prev.map(v => v.id === id ? { ...v, isFavorite: !v.isFavorite } : v)); };
-  const openEditForm = (vehicle, e) => { e.stopPropagation(); setEditingData(vehicle); setFormMode('edit'); };
+  const openEditForm = (vehicle, e) => { e.stopPropagation(); setEditingData(vehicle); setFormMode(vehicle.type === '挂车' ? 'create_trailer' : 'create_tractor'); };
   const openCreateForm = (type) => { setEditingData(null); setFormMode(`create_${type}`); };
 
   // --------------------------------------------------------
@@ -223,14 +223,57 @@ export default function App() {
     );
   };
 
-  return (
-    <div className="w-[1920px] min-h-[1080px] bg-[#f2f5f9] p-10 font-sans text-slate-800 relative overflow-hidden mx-auto shadow-[0_0_100px_rgba(0,0,0,0.1)] ring-1 ring-slate-900/5 selection:bg-indigo-200 selection:text-indigo-900">
-      
-      {/* 氛围背景光晕 */}
-      <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-indigo-300/15 rounded-full blur-[160px] pointer-events-none"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-emerald-300/10 rounded-full blur-[140px] pointer-events-none"></div>
+  // 🌟 修复：彻底移除了 <option> 上的 selected，只使用 <select> 上的 defaultValue
+  const FormField = ({ label, type = 'text', required = false, placeholder, options = [], width = 'col-span-1', defaultValue = "" }) => (
+    <div className={`flex flex-col gap-2 ${width} group`}>
+      <label className="text-[13px] font-bold text-slate-600 flex items-center gap-1 transition-colors group-focus-within:text-indigo-600">
+        {required && <span className="text-rose-500 translate-y-[1px]">*</span>}
+        {label}
+      </label>
+      <div className="relative">
+        {type === 'select' ? (
+          <>
+            <select defaultValue={defaultValue || ""} className="w-full bg-slate-50/80 border border-slate-200/60 hover:border-indigo-300 rounded-2xl px-5 py-3.5 text-[14px] font-semibold text-slate-700 outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white shadow-sm appearance-none cursor-pointer transition-all">
+              <option value="" disabled hidden>{placeholder || '请选择'}</option>
+              {options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+            </select>
+            <ChevronDown className="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-focus-within:text-indigo-500 transition-colors" />
+          </>
+        ) : type === 'date' ? (
+          <>
+            <input type="text" defaultValue={defaultValue} className="w-full bg-slate-50/80 border border-slate-200/60 hover:border-indigo-300 rounded-2xl pl-5 pr-10 py-3.5 text-[14px] font-semibold text-slate-700 outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white shadow-sm transition-all placeholder:text-slate-400" placeholder={placeholder || '请选择日期'} />
+            <CalendarDays className="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-focus-within:text-indigo-500 transition-colors" />
+          </>
+        ) : (
+          <input type={type} defaultValue={defaultValue} className="w-full bg-slate-50/80 border border-slate-200/60 hover:border-indigo-300 rounded-2xl px-5 py-3.5 text-[14px] font-semibold text-slate-700 outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white shadow-sm transition-all placeholder:text-slate-400" placeholder={placeholder || '请输入'} />
+        )}
+      </div>
+    </div>
+  );
 
-      <div className="max-w-[1720px] mx-auto space-y-6 relative z-10">
+  const ImageUploadBox = ({ title, subTitle }) => (
+    <div className="flex flex-col gap-2 group cursor-pointer h-full">
+      <div className="flex-1 min-h-[140px] bg-slate-50/50 rounded-[1.5rem] border-2 border-dashed border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/30 transition-all flex flex-col items-center justify-center gap-3 relative overflow-hidden p-4">
+        <div className="w-12 h-12 bg-white rounded-full shadow-sm border border-slate-100 flex items-center justify-center group-hover:scale-110 group-hover:shadow-md transition-all duration-300">
+          <Plus className="w-6 h-6 text-slate-400 group-hover:text-indigo-500 transition-colors" />
+        </div>
+        <div className="text-center relative z-10">
+          <p className="text-[14px] font-extrabold text-slate-600 group-hover:text-indigo-600 transition-colors">{title}</p>
+          {subTitle && <p className="text-[12px] font-bold text-slate-400 mt-0.5">{subTitle}</p>}
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="w-full font-sans text-slate-800 relative selection:bg-indigo-200 selection:text-indigo-900">
+      
+      <div className="absolute inset-0 overflow-visible pointer-events-none z-0">
+        <div className="absolute top-[-10%] left-[-5%] w-[50%] h-[50%] bg-indigo-300/15 rounded-full blur-[120px]"></div>
+        <div className="absolute bottom-[-10%] right-[-5%] w-[40%] h-[40%] bg-emerald-300/10 rounded-full blur-[120px]"></div>
+      </div>
+
+      <div className="w-full space-y-6 relative z-10">
         
         {/* ========================================== */}
         {/* 顶部导航 & 动作区 */}
@@ -292,18 +335,22 @@ export default function App() {
         </div>
 
         {/* ========================================== */}
-        {/* 2. 沉浸式 Active Banner */}
+        {/* 🌟 2. 沉浸式 Active Banner (还原截图蓝色横幅) */}
         {/* ========================================== */}
-        <div className={`transition-all duration-500 ease-out origin-top ${activeFilter !== 'all' ? 'opacity-100 h-auto translate-y-0 pb-2' : 'opacity-0 h-0 -translate-y-4 overflow-hidden pointer-events-none'}`}>
-          <div className="bg-gradient-to-r from-indigo-600 to-blue-600 rounded-2xl px-6 py-4 flex items-center justify-between shadow-lg shadow-indigo-600/20">
-            <div className="flex items-center gap-5">
-              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center border border-white/10 backdrop-blur-sm shadow-inner"><Filter className="w-6 h-6 text-white" /></div>
+        <div className={`transition-all duration-500 ease-out origin-top ${activeFilter !== 'all' ? 'opacity-100 h-auto translate-y-0 pb-6' : 'opacity-0 h-0 -translate-y-4 overflow-hidden pointer-events-none'}`}>
+          <div className="bg-indigo-600 rounded-2xl px-6 py-5 flex items-center justify-between shadow-xl shadow-indigo-600/20">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm border border-white/10">
+                <Filter className="w-5 h-5 text-white" />
+              </div>
               <div className="flex flex-col">
-                <span className="text-white font-bold text-[16px] tracking-wide">正在查看【{FILTER_DICT[activeFilter]}】分类的名单</span>
-                <span className="text-indigo-100 font-medium text-[13px] mt-1">共筛选出 {filteredVehicles.length} 条符合条件的记录</span>
+                <span className="text-white font-bold text-[16px] tracking-wide">正在查看【{FILTER_DICT[activeFilter]}】分类的车辆名单</span>
+                <span className="text-indigo-100/80 font-medium text-[13px] mt-0.5">共筛选出 {filteredVehicles.length} 条符合条件的记录</span>
               </div>
             </div>
-            <button onClick={() => setActiveFilter('all')} className="flex items-center gap-2 bg-white text-indigo-600 px-6 py-3 rounded-xl font-bold text-[14px] hover:bg-slate-50 transition-colors shadow-sm hover:scale-105 active:scale-95"><RefreshCw className="w-4 h-4" /> 清除筛选</button>
+            <button onClick={() => setActiveFilter('all')} className="flex items-center gap-2 bg-white text-indigo-600 px-5 py-2.5 rounded-xl font-bold text-[14px] hover:bg-slate-50 transition-all shadow-sm hover:scale-105 active:scale-95">
+              <RefreshCw className="w-4 h-4" /> 清除筛选
+            </button>
           </div>
         </div>
 
@@ -326,7 +373,7 @@ export default function App() {
                 <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest pl-1 group-focus-within:text-indigo-600 transition-colors">{field.label}</label>
                 <div className="relative">
                   {field.type === 'select' ? (
-                    <><select className="w-full bg-white/60 border border-slate-200/60 hover:border-indigo-200 rounded-2xl px-4 py-3 text-[13px] font-semibold text-slate-700 outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 focus:bg-white shadow-sm appearance-none cursor-pointer transition-all">{field.options.map(opt => <option key={opt}>{opt}</option>)}</select><ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-focus-within:text-indigo-500 transition-colors" /></>
+                    <><select defaultValue="" className="w-full bg-white/60 border border-slate-200/60 hover:border-indigo-200 rounded-2xl px-4 py-3 text-[13px] font-semibold text-slate-700 outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 focus:bg-white shadow-sm appearance-none cursor-pointer transition-all"><option value="" disabled hidden>请选择</option>{field.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}</select><ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-focus-within:text-indigo-500 transition-colors" /></>
                   ) : field.type === 'date' ? (
                     <><input className="w-full bg-white/60 border border-slate-200/60 hover:border-indigo-200 rounded-2xl pl-4 pr-9 py-3 text-[13px] font-semibold text-slate-700 outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 focus:bg-white shadow-sm transition-all placeholder:text-slate-400" placeholder={field.placeholder} /><CalendarDays className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-focus-within:text-indigo-500 transition-colors" /></>
                   ) : (
@@ -342,7 +389,6 @@ export default function App() {
                 <button className="px-8 py-3.5 bg-indigo-600 text-white text-[14px] font-bold rounded-2xl hover:bg-indigo-700 shadow-lg shadow-indigo-600/20 transition-all flex items-center gap-2 hover:-translate-y-0.5 active:translate-y-0"><Search className="w-4 h-4" /> 立即查询</button>
                 <button className="px-8 py-3.5 bg-white text-slate-600 text-[14px] font-bold rounded-2xl hover:bg-slate-50 transition-all flex items-center gap-2 border border-slate-200 shadow-sm hover:text-slate-800"><RefreshCw className="w-4 h-4" /> 重置条件</button>
              </div>
-             {/* 🌟 移除视图切换按钮 */}
           </div>
         </div>
 
@@ -358,6 +404,7 @@ export default function App() {
                 <th className="px-5 py-6">车牌号</th>
                 <th className="px-5 py-6">车辆来源</th>
                 <th className="px-5 py-6">车辆类型</th>
+                <th className="px-5 py-6">所属项目</th>
                 <th className="px-5 py-6 min-w-[180px]">车辆信息</th>
                 <th className="px-5 py-6">车辆状态</th>
                 <th className="px-5 py-6">接车司机</th>
@@ -376,13 +423,17 @@ export default function App() {
                   <td className="px-5 py-5"><span className="inline-flex px-3.5 py-1.5 bg-indigo-50/50 text-indigo-700 border border-indigo-100 rounded-xl text-[14px] font-extrabold shadow-sm tracking-wider font-mono">{v.plate}</span></td>
                   <td className="px-5 py-5"><SourceBadge source={v.source} /></td>
                   <td className="px-5 py-5 text-[14px] font-bold text-slate-700">{v.type}</td>
+                  <td className="px-5 py-5">
+                    <span className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[12px] font-bold text-slate-600 whitespace-nowrap">
+                      {v.projectCompany}
+                    </span>
+                  </td>
                   <td className="px-5 py-5 flex flex-col gap-1 justify-center">
                     <span className="text-[12px] font-bold text-slate-400 tracking-wider font-mono">{v.vin}</span>
                     <span className="text-[13px] font-semibold text-slate-700">{v.engineNo}</span>
                   </td>
                   <td className="px-5 py-5"><StatusBadge status={v.status} /></td>
                   
-                  {/* 🌟 移除接车司机点击交互，回归纯展示 */}
                   <td className="px-5 py-5">
                     {v.boundDriver ? (
                       <div className="flex items-center gap-3 p-1.5 -ml-1.5">
@@ -656,23 +707,176 @@ export default function App() {
         </>
       )}
 
-      {/* 新建/编辑车辆表单抽屉 */}
+      {/* 🌟 新建/编辑车辆表单抽屉 (高度定制化挂车表单) */}
       {formMode && (
-         <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm z-40 animate-in fade-in flex justify-end" onClick={() => setFormMode(null)}>
-            <div className="h-full w-[800px] bg-[#f8fafc] shadow-2xl animate-in slide-in-from-right duration-500 flex flex-col" onClick={e=>e.stopPropagation()}>
-               <div className="px-10 py-6 border-b border-slate-200/60 bg-white flex justify-between items-center"><h2 className="text-2xl font-extrabold text-slate-800">{formMode.includes('create') ? '新建车辆' : '编辑车辆'}</h2><button onClick={() => setFormMode(null)} className="p-2 rounded-full hover:bg-slate-100"><X className="w-5 h-5" /></button></div>
-               <div className="flex-1 overflow-y-auto p-10 flex flex-col gap-6">
-                 {/* 简易表单示意，为保持代码完整 */}
-                 <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-                   <h3 className="font-bold text-indigo-600 mb-4">基本信息</h3>
-                   <div className="grid grid-cols-2 gap-4">
-                     <input className="bg-slate-50 border border-slate-200 p-3 rounded-xl" placeholder="车牌号" defaultValue={editingData?.plate} />
-                     <input className="bg-slate-50 border border-slate-200 p-3 rounded-xl" placeholder="车辆类型" defaultValue={editingData?.type} />
-                     <input className="bg-slate-50 border border-slate-200 p-3 rounded-xl col-span-2" placeholder="VIN码" defaultValue={editingData?.vin} />
+         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 animate-in fade-in flex justify-end" onClick={() => setFormMode(null)}>
+            <div className="h-full w-[960px] bg-[#f8fafc] shadow-2xl animate-in slide-in-from-right duration-500 flex flex-col border-l border-white" onClick={e=>e.stopPropagation()}>
+               
+               {/* 表单头部 */}
+               <div className="px-10 py-6 border-b border-slate-200/60 bg-white/90 backdrop-blur-md flex justify-between items-center relative z-20 shadow-sm shrink-0">
+                 <div className="flex items-center gap-4">
+                   <div className={`p-3 text-white rounded-2xl shadow-lg ${formMode.includes('create') ? 'bg-gradient-to-br from-indigo-500 to-indigo-600 shadow-indigo-500/30' : 'bg-gradient-to-br from-blue-500 to-blue-600 shadow-blue-500/30'}`}>
+                     {formMode.includes('create') ? <Plus className="w-5 h-5" /> : <Edit className="w-5 h-5" />}
+                   </div>
+                   <h2 className="text-2xl font-extrabold text-slate-800 tracking-tight">
+                     {formMode === 'create_tractor' ? '新增牵引车' : formMode === 'create_trailer' ? '新增挂车' : '编辑车辆信息'}
+                   </h2>
+                 </div>
+                 <button onClick={() => setFormMode(null)} className="p-2.5 bg-slate-50 hover:bg-rose-50 hover:text-rose-600 text-slate-400 rounded-full transition-colors border border-slate-200 shadow-sm">
+                   <X className="w-5 h-5" />
+                 </button>
+               </div>
+
+               {/* 表单内容区 */}
+               <div className="flex-1 overflow-y-auto p-10 flex flex-col gap-8 relative scroll-smooth custom-scrollbar">
+                 {/* 装饰背景 */}
+                 <div className="absolute right-[-10%] top-[5%] w-[600px] h-[600px] bg-indigo-200/20 rounded-full blur-[100px] pointer-events-none"></div>
+
+                 {formMode === 'create_trailer' || (formMode === 'edit' && editingData?.type === '挂车') ? (
+                   /* 挂车专属表单布局 (完美还原截图字段) */
+                   <>
+                     {/* Card 1: 核心基础信息 */}
+                     <div className="bg-white p-8 rounded-[2rem] border border-white shadow-[0_10px_30px_rgb(0,0,0,0.03)] relative z-10">
+                       <SectionTitle icon={Car} title="核心基础信息" color="text-indigo-600" />
+                       <div className="grid grid-cols-2 gap-x-8 gap-y-6">
+                         <FormField label="所属项目公司" type="select" required options={['项目一公司', '项目二公司', '项目三公司']} defaultValue={editingData?.projectCompany} />
+                         <FormField label="车牌号" required placeholder="请输入" defaultValue={editingData?.plate} />
+                         <FormField label="车辆VIN码" required placeholder="请输入" defaultValue={editingData?.vin} />
+                         <FormField label="车辆来源" type="select" required options={['自有', '外调', '外采二手']} defaultValue={editingData?.source} />
+                         <FormField label="车辆类型" type="select" required options={['牵引车', '挂车']} defaultValue="挂车" />
+                         <FormField label="挂车类型" type="select" required options={['仓栅式', '平板式', '自卸式']} />
+                         <FormField label="挂车所有人" type="select" required options={['公司A', '公司B']} />
+                         <FormField label="挂车品牌" type="select" options={['品牌A', '品牌B']} />
+                         <FormField label="挂车供应商" type="select" options={['供应商A', '供应商B']} />
+                         <FormField label="使用性质" type="select" options={['货运', '客运', '非营运']} />
+                         <FormField label="车牌颜色" type="select" options={['黄色', '蓝色', '绿色']} defaultValue={editingData?.vehicleColor} />
+                       </div>
+                     </div>
+
+                     {/* Card 2: 技术规格参数 */}
+                     <div className="bg-white p-8 rounded-[2rem] border border-white shadow-[0_10px_30px_rgb(0,0,0,0.03)] relative z-10">
+                       <SectionTitle icon={Info} title="技术规格参数" color="text-indigo-600" />
+                       <div className="grid grid-cols-2 gap-x-8 gap-y-6">
+                         <FormField label="轴数" type="select" options={['2轴', '3轴', '4轴']} defaultValue={editingData?.axes} />
+                         <FormField label="外廓尺寸(mm)" placeholder="请输入" defaultValue={editingData?.dimensions} />
+                         <FormField label="总质量(kg)" type="number" placeholder="请输入" defaultValue={editingData?.totalWeight} />
+                         <FormField label="整备质量(kg)" type="number" placeholder="请输入" defaultValue={editingData?.curbWeight} />
+                         <FormField label="核定载质量(kg)" type="number" placeholder="请输入" defaultValue={editingData?.approvedWeight} />
+                         <FormField label="车长(米)" type="number" placeholder="请输入" />
+                       </div>
+                     </div>
+
+                     {/* Card 3: 资质与保险效期 */}
+                     <div className="bg-white p-8 rounded-[2rem] border border-white shadow-[0_10px_30px_rgb(0,0,0,0.03)] relative z-10">
+                       <SectionTitle icon={ShieldCheck} title="资质证件效期" color="text-indigo-600" />
+                       <div className="grid grid-cols-2 gap-x-8 gap-y-6">
+                         <FormField label="注册日期" type="date" required defaultValue={editingData?.registerDate} />
+                         <FormField label="发证日期" type="date" required defaultValue={editingData?.certDate} />
+                         <FormField label="检验有效期" type="date" required defaultValue={editingData?.annualExpiry} />
+                         <FormField label="道路运输证号" required placeholder="请输入" defaultValue={editingData?.transportCertNo} />
+                         <FormField label="道路运输证有效期至" type="date" required defaultValue={editingData?.transportCertExpiry} />
+                         <FormField label="发证机关" placeholder="请输入" />
+                         <FormField label="二级维修时间" type="date" defaultValue={editingData?.maintenanceExpiry} />
+                         <FormField label="强制报废期止" type="date" defaultValue={editingData?.scrapExpiry} />
+                       </div>
+                     </div>
+                   </>
+                 ) : (
+                   /* 牵引车专属表单布局 */
+                   <>
+                     {/* Card 1: 核心基础信息 */}
+                     <div className="bg-white p-8 rounded-[2rem] border border-white shadow-[0_10px_30px_rgb(0,0,0,0.03)] relative z-10">
+                       <SectionTitle icon={Car} title="核心基础信息" color="text-indigo-600" />
+                       <div className="grid grid-cols-2 gap-x-8 gap-y-6">
+                         <FormField label="所属项目公司" type="select" required options={['项目一公司', '项目二公司', '项目三公司']} defaultValue={editingData?.projectCompany} />
+                         <FormField label="能源类型" type="select" required options={['燃油', '纯电动', '混合动力']} />
+                         <FormField label="车牌号" required placeholder="请输入车牌号" defaultValue={editingData?.plate} />
+                         <FormField label="车辆VIN码" required placeholder="请输入17位VIN码" defaultValue={editingData?.vin} />
+                         <FormField label="车辆来源" type="select" required options={['自有', '外调', '外采二手']} defaultValue={editingData?.source} />
+                         <FormField label="车辆类型" type="select" required options={['牵引车', '挂车']} defaultValue="牵引车" />
+                         <FormField label="牵引车品牌" type="select" required />
+                         <FormField label="牵引车类型" type="select" required />
+                         <FormField label="牵引车所有人" type="select" required />
+                         <FormField label="使用性质" type="select" options={['货运', '客运', '非营运']} />
+                         <FormField label="车牌颜色" type="select" options={['黄色', '蓝色', '绿色', '白色']} defaultValue={editingData?.vehicleColor} />
+                       </div>
+                     </div>
+
+                     {/* Card 2: 电池与规格参数 */}
+                     <div className="bg-white p-8 rounded-[2rem] border border-white shadow-[0_10px_30px_rgb(0,0,0,0.03)] relative z-10">
+                       <SectionTitle icon={Info} title="电池与技术规格" color="text-indigo-600" />
+                       <div className="grid grid-cols-2 gap-x-8 gap-y-6">
+                         <FormField label="电池类型" type="select" required options={['磷酸铁锂', '三元锂', '充换电一体']} defaultValue={editingData?.batteryType} />
+                         <FormField label="电池容量" type="select" required options={['282度', '350度', '391度', '420度']} defaultValue={editingData?.batteryCapacity} />
+                         <FormField label="轴数" type="select" options={['2轴', '3轴', '4轴', '5轴', '6轴及以上']} defaultValue={editingData?.axes} />
+                         <FormField label="外廓尺寸(mm)" placeholder="长 * 宽 * 高" defaultValue={editingData?.dimensions} />
+                         <FormField label="总质量(kg)" type="number" placeholder="请输入" defaultValue={editingData?.totalWeight} />
+                         <FormField label="整备质量(kg)" type="number" placeholder="请输入" defaultValue={editingData?.curbWeight} />
+                         <FormField label="核定载质量(kg)" type="number" placeholder="请输入" defaultValue={editingData?.approvedWeight} />
+                         <FormField label="车长(米)" type="number" placeholder="请输入" />
+                         <FormField label="准牵引总质量(Kg)" type="number" placeholder="请输入" width="col-span-2" />
+                       </div>
+                     </div>
+
+                     {/* Card 3: 资质与保险效期 */}
+                     <div className="bg-white p-8 rounded-[2rem] border border-white shadow-[0_10px_30px_rgb(0,0,0,0.03)] relative z-10">
+                       <SectionTitle icon={ShieldCheck} title="资质与保险效期" color="text-indigo-600" />
+                       <div className="grid grid-cols-2 gap-x-8 gap-y-6">
+                         <FormField label="注册日期" type="date" required defaultValue={editingData?.registerDate} />
+                         <FormField label="发证日期" type="date" required defaultValue={editingData?.certDate} />
+                         <FormField label="发证机关" placeholder="请输入发证机关全称" width="col-span-2" />
+                         
+                         <div className="col-span-2 h-px bg-slate-100 my-2"></div>
+                         
+                         <FormField label="检验有效期" type="date" required defaultValue={editingData?.annualExpiry} />
+                         <FormField label="交强险日期" type="date" required defaultValue={editingData?.insuranceExpiry} />
+                         <FormField label="商业险" type="select" required options={['已购买', '未购买']} />
+                         <FormField label="商业险日期" type="date" />
+                         
+                         <div className="col-span-2 h-px bg-slate-100 my-2"></div>
+
+                         <FormField label="道路运输证号" required placeholder="请输入运输证号" defaultValue={editingData?.transportCertNo} />
+                         <FormField label="道路运输证有效期至" type="date" required defaultValue={editingData?.transportCertExpiry} />
+                         <FormField label="二级维修时间" type="date" defaultValue={editingData?.maintenanceExpiry} />
+                         <FormField label="强制报废期止" type="date" defaultValue={editingData?.scrapExpiry} />
+                       </div>
+                     </div>
+                   </>
+                 )}
+
+                 {/* Card 4: 证件影像档案 (挂车与牵引车通用) */}
+                 <div className="bg-white p-8 rounded-[2rem] border border-white shadow-[0_10px_30px_rgb(0,0,0,0.03)] relative z-10 flex flex-col gap-8">
+                   <div>
+                     <SectionTitle icon={IdCard} title="行驶证信息" color="text-slate-700" />
+                     <div className="grid grid-cols-2 gap-6 pl-2">
+                       <ImageUploadBox title="行驶证主页" subTitle="点击上传清晰原件" />
+                       <ImageUploadBox title="行驶证副页" subTitle="点击上传清晰原件" />
+                     </div>
+                   </div>
+                   
+                   <div className="h-px bg-slate-100 w-full"></div>
+
+                   <div>
+                     <SectionTitle icon={FileBadge} title="道路运输证信息" color="text-slate-700" />
+                     <div className="grid grid-cols-2 gap-6 pl-2">
+                       <ImageUploadBox title="道路运输证照片" subTitle="点击上传清晰原件" />
+                       <ImageUploadBox title="有效期照片" subTitle="包含有效期的内页盖章页" />
+                     </div>
                    </div>
                  </div>
+
                </div>
-               <div className="p-6 bg-white border-t flex justify-end gap-4"><button onClick={() => setFormMode(null)} className="px-6 py-2 bg-slate-100 rounded-xl font-bold">取消</button><button onClick={() => setFormMode(null)} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold flex items-center gap-2"><Save className="w-4 h-4"/>保存信息</button></div>
+
+               {/* 表单底部动作区 */}
+               <div className="p-6 bg-white/90 backdrop-blur-md border-t border-slate-200/60 flex justify-end gap-4 shrink-0 relative z-20 shadow-[0_-10px_20px_rgb(0,0,0,0.02)]">
+                 <button onClick={() => setFormMode(null)} className="px-10 py-3.5 bg-slate-100 text-slate-600 rounded-2xl font-bold text-[14px] hover:bg-slate-200 transition-all border border-slate-200">
+                   取消
+                 </button>
+                 <button onClick={() => setFormMode(null)} className="px-10 py-3.5 bg-indigo-600 text-white rounded-2xl font-bold text-[14px] flex items-center gap-2 hover:bg-indigo-700 hover:-translate-y-0.5 shadow-lg shadow-indigo-600/20 transition-all">
+                   <Save className="w-4 h-4" /> 确认提交
+                 </button>
+               </div>
+
             </div>
          </div>
       )}

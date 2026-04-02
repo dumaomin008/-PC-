@@ -1,9 +1,10 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Building2,
   Wallet,
   TrendingUp,
   PieChart,
+  ChevronLeft,
   ChevronRight,
   BarChart3,
   BadgeDollarSign,
@@ -29,7 +30,45 @@ function clampPct(n) {
   return Math.max(0, Math.min(100, n));
 }
 
-const KPI = ({ title, value, sub, icon: Icon, tone = 'indigo' }) => {
+const CHART_COLORS = {
+  indigo: { stroke: '#4f46e5', fill: 'rgba(79, 70, 229, 0.12)' },
+  rose: { stroke: '#e11d48', fill: 'rgba(225, 29, 72, 0.1)' },
+  emerald: { stroke: '#059669', fill: 'rgba(5, 150, 105, 0.12)' },
+};
+
+const TREND_POINT_COUNT = 16;
+
+/** 底部全宽同比趋势（示意曲线，随升降略偏上/下） */
+function MiniYoyTrendSvg({ up, stroke, fill }) {
+  const n = TREND_POINT_COUNT;
+  const w = 320;
+  const h = 52;
+  const pts = Array.from({ length: n }, (_, i) => {
+    const t = i / (n - 1);
+    const drift = up ? 0.28 + t * 0.52 : 0.72 - t * 0.48;
+    const wobble = Math.sin(i * 0.55 + (up ? 0.2 : 1.1)) * 0.07;
+    return Math.max(0.12, Math.min(0.9, drift + wobble));
+  });
+  const min = Math.min(...pts);
+  const max = Math.max(...pts);
+  const span = max - min || 1;
+  const padY = 6;
+  const innerH = h - padY * 2;
+  const yAt = (p) => padY + innerH - ((p - min) / span) * innerH;
+  const step = w / (n - 1);
+  const lineD = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${(i * step).toFixed(1)} ${yAt(p).toFixed(1)}`).join(' ');
+  const areaD = `M 0 ${h} ${pts.map((p, i) => `L ${(i * step).toFixed(1)} ${yAt(p).toFixed(1)}`).join(' ')} L ${w} ${h} Z`;
+
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-[52px] block" preserveAspectRatio="none" aria-hidden>
+      <path d={areaD} fill={fill} />
+      <path d={lineD} fill="none" stroke={stroke} strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/** 同比：营收/利润上升为好；成本上升为压力（用反向配色） */
+const KPIWithYoy = ({ title, value, sub, icon: Icon, tone = 'indigo', yoyPct, yoyGoodWhenUp = true }) => {
   const toneMap = {
     indigo: { bg: 'bg-indigo-50', text: 'text-indigo-600' },
     emerald: { bg: 'bg-emerald-50', text: 'text-emerald-600' },
@@ -38,20 +77,108 @@ const KPI = ({ title, value, sub, icon: Icon, tone = 'indigo' }) => {
     slate: { bg: 'bg-slate-50', text: 'text-slate-600' },
   };
   const t = toneMap[tone] ?? toneMap.indigo;
+  const up = yoyPct >= 0;
+  const favorable = yoyGoodWhenUp ? up : !up;
+  const trendCls = favorable ? 'text-emerald-600 bg-emerald-50' : 'text-rose-600 bg-rose-50';
+  const chart = CHART_COLORS[tone] ?? CHART_COLORS.indigo;
 
   return (
-    <div className="relative overflow-hidden bg-white rounded-[2rem] p-6 shadow-[0_8px_30px_rgb(0,0,0,0.03)] border border-white">
+    <div className="relative overflow-hidden bg-white rounded-[2rem] p-5 sm:p-6 shadow-[0_8px_30px_rgb(0,0,0,0.03)] border border-white flex flex-col h-full min-h-[238px]">
       <div className={`absolute -right-10 -top-10 w-32 h-32 rounded-full blur-3xl opacity-50 ${t.bg} pointer-events-none`} />
-      <div className="flex items-start justify-between relative z-10">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 mb-3">
+      <div className="relative z-10 flex flex-col flex-1 min-h-0">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${t.bg} ${t.text} shadow-sm shrink-0`}>
+              <Icon className="w-5 h-5" />
+            </div>
+            <h3 className="text-[12px] font-black text-slate-400 uppercase tracking-widest leading-tight">{title}</h3>
+          </div>
+          <div className="flex flex-col items-end gap-1 shrink-0">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">同比</span>
+            <div className={`flex items-center gap-0.5 rounded-xl px-2.5 py-1 ${trendCls}`}>
+              {up ? <ArrowUpRight className="w-3.5 h-3.5 shrink-0" /> : <ArrowDownRight className="w-3.5 h-3.5 shrink-0" />}
+              <span className="text-xs font-black tabular-nums">{up ? '' : '−'}{Math.abs(Number(yoyPct || 0)).toFixed(1)}%</span>
+            </div>
+          </div>
+        </div>
+        <div className="text-2xl sm:text-3xl font-black text-slate-800 tracking-tight mt-2.5 truncate">{value}</div>
+        {sub ? <div className="text-[11px] sm:text-xs font-bold text-slate-400 mt-0.5 leading-relaxed line-clamp-2">{sub}</div> : null}
+
+        <div className="mt-auto pt-4 border-t border-slate-100">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">同比趋势</span>
+            <span className="text-[10px] font-bold text-slate-300">近 {TREND_POINT_COUNT} 期示意</span>
+          </div>
+          <div className="rounded-xl bg-slate-50/90 px-1.5 py-1 border border-slate-100/80">
+            <MiniYoyTrendSvg up={up} stroke={chart.stroke} fill={chart.fill} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const CostStructureCard = ({ total, vehicle, waybill, driverFee, icon: Icon }) => {
+  const tone = 'amber';
+  const toneMap = { amber: { bg: 'bg-amber-50', text: 'text-amber-600' } };
+  const t = toneMap[tone];
+  const safeTotal = Math.max(1, total);
+  const rows = [
+    { label: '车辆成本', value: vehicle, bar: 'bg-amber-500', dot: 'bg-amber-500' },
+    { label: '运单成本', value: waybill, bar: 'bg-orange-400', dot: 'bg-orange-400' },
+    { label: '司机运输费', value: driverFee, bar: 'bg-amber-300', dot: 'bg-amber-300' },
+  ];
+
+  return (
+    <div className="relative overflow-hidden bg-white rounded-[2rem] p-5 sm:p-6 shadow-[0_8px_30px_rgb(0,0,0,0.03)] border border-white flex flex-col h-full min-h-[238px]">
+      <div className={`absolute -right-10 -top-10 w-32 h-32 rounded-full blur-3xl opacity-50 ${t.bg} pointer-events-none`} />
+      <div className="relative z-10 flex flex-col flex-1 min-h-0">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <div className="flex items-center gap-2">
             <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${t.bg} ${t.text} shadow-sm`}>
               <Icon className="w-5 h-5" />
             </div>
-            <h3 className="text-[12px] font-black text-slate-400 uppercase tracking-widest">{title}</h3>
+            <h3 className="text-[12px] font-black text-slate-400 uppercase tracking-widest">成本结构</h3>
           </div>
-          <div className="text-3xl font-black text-slate-800 tracking-tight truncate">{value}</div>
-          {sub ? <div className="text-xs font-bold text-slate-400 mt-2">{sub}</div> : null}
+        </div>
+        <div className="text-2xl sm:text-3xl font-black text-slate-800 tracking-tight">{formatCNY(total)}</div>
+        <p className="text-[11px] font-bold text-slate-400 mt-1 mb-4">占总额比例</p>
+
+        <div className="flex h-3 w-full rounded-full overflow-hidden ring-1 ring-slate-100/80 mb-5">
+          {rows.map((r) => (
+            <div
+              key={r.label}
+              className={`h-full ${r.bar} transition-all shrink-0`}
+              style={{
+                width: `${clampPct((r.value / safeTotal) * 100)}%`,
+                minWidth: r.value > 0 ? 3 : 0,
+              }}
+              title={r.label}
+            />
+          ))}
+        </div>
+
+        <div className="space-y-4 flex-1">
+          {rows.map((r) => {
+            const pct = clampPct((r.value / safeTotal) * 100);
+            return (
+              <div key={r.label} className="flex gap-3 items-stretch">
+                <div className={`w-1 rounded-full shrink-0 ${r.dot} opacity-90`} />
+                <div className="flex-1 min-w-0 space-y-2">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="text-[13px] font-bold text-slate-600">{r.label}</span>
+                    <div className="text-right shrink-0">
+                      <div className="text-[14px] font-black text-slate-800 tabular-nums">{formatCNY(r.value)}</div>
+                      <div className="text-[11px] font-bold text-slate-400 tabular-nums">{pct.toFixed(1)}%</div>
+                    </div>
+                  </div>
+                  <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                    <div className={`h-full rounded-full ${r.bar} opacity-90`} style={{ width: `${pct}%` }} />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
@@ -90,7 +217,13 @@ export default function HomeDashboard() {
     end: new Date().toISOString().split('T')[0]
   });
   const [tempPeriod, setTempPeriod] = useState('today'); // 临时存储当前选中的时间段
+  const [driverWaybillPage, setDriverWaybillPage] = useState(0);
+  const driverModalTouchX = useRef(null);
   const driverSectionRef = useRef(null);
+
+  useEffect(() => {
+    if (showDriverModal) setDriverWaybillPage(0);
+  }, [showDriverModal, selectedDriver?.id]);
 
   // 假数据（口径：你给的成本分类）
   const mock = useMemo(() => {
@@ -98,6 +231,7 @@ export default function HomeDashboard() {
       {
         id: 'fleet_ah',
         name: '安徽一车队',
+        vehicles: { total: 28, tractor: 14, trailer: 14 },
         revenue: { today: 186000, month: 4680000 },
         vehicleCost: {
           trailer: { charge: 4200, maintenance: 2800, fuel: 9500, inspection: 1200, consumables: 800 },
@@ -186,6 +320,7 @@ export default function HomeDashboard() {
       {
         id: 'fleet_js',
         name: '江苏二车队',
+        vehicles: { total: 22, tractor: 11, trailer: 11 },
         revenue: { today: 142000, month: 3890000 },
         vehicleCost: {
           trailer: { charge: 3600, maintenance: 2400, fuel: 7800, inspection: 1100, consumables: 650 },
@@ -255,6 +390,7 @@ export default function HomeDashboard() {
       {
         id: 'fleet_bj',
         name: '北京三车队',
+        vehicles: { total: 18, tractor: 9, trailer: 9 },
         revenue: { today: 98000, month: 2600000 },
         vehicleCost: {
           trailer: { charge: 2500, maintenance: 1800, fuel: 5400, inspection: 900, consumables: 520 },
@@ -391,10 +527,55 @@ export default function HomeDashboard() {
           waybills: driver.waybills[currentPeriod],
           revenue: driver.revenue[currentPeriod],
           waybillList: [
-          { id: 'YD20260331000001', date: '2026-03-31', amount: Math.floor(Math.random() * 3000) + 5000, status: 'completed', customer: '北京某某物流有限公司', route: '北京-上海', settlementType: '月结', origin: '北京市朝阳区', destination: '上海市浦东新区', planStartDate: '2026-03-31', planEndDate: '2026-04-01' },
-          { id: 'YD20260330000002', date: '2026-03-30', amount: Math.floor(Math.random() * 3000) + 5000, status: 'completed', customer: '上海某某贸易有限公司', route: '上海-广州', settlementType: '现结', origin: '上海市浦东新区', destination: '广州市天河区', planStartDate: '2026-03-30', planEndDate: '2026-03-31' },
-          { id: 'YD20260329000003', date: '2026-03-29', amount: Math.floor(Math.random() * 3000) + 5000, status: 'completed', customer: '广州某某制造有限公司', route: '广州-深圳', settlementType: '周结', origin: '广州市天河区', destination: '深圳市南山区', planStartDate: '2026-03-29', planEndDate: '2026-03-30' },
-        ],
+            {
+              id: 'YD20260331000001',
+              date: '2026-03-31',
+              amount: 8200,
+              status: 'completed',
+              customer: '北京某某物流有限公司',
+              route: '北京-上海',
+              settlementMethod: '月结',
+              origin: '北京市朝阳区',
+              destination: '上海市浦东新区',
+              loadTime: '2026-03-31 08:20',
+              unloadTime: '2026-04-01 14:35',
+              cargoCategory: '散装水泥',
+              plateNumber: '贵A·2332M',
+              tonnage: '32.5',
+            },
+            {
+              id: 'YD20260330000002',
+              date: '2026-03-30',
+              amount: 7600,
+              status: 'completed',
+              customer: '上海某某贸易有限公司',
+              route: '上海-广州',
+              settlementMethod: '现结',
+              origin: '上海市浦东新区',
+              destination: '广州市天河区',
+              loadTime: '2026-03-30 06:45',
+              unloadTime: '2026-03-31 11:10',
+              cargoCategory: '钢材卷板',
+              plateNumber: '贵A·171N8',
+              tonnage: '28.0',
+            },
+            {
+              id: 'YD20260329000003',
+              date: '2026-03-29',
+              amount: 6900,
+              status: 'completed',
+              customer: '广州某某制造有限公司',
+              route: '广州-深圳',
+              settlementMethod: '周结',
+              origin: '广州市天河区',
+              destination: '深圳市南山区',
+              loadTime: '2026-03-29 09:00',
+              unloadTime: '2026-03-29 18:20',
+              cargoCategory: '化工原料',
+              plateNumber: '苏A·88K21',
+              tonnage: '24.6',
+            },
+          ],
         details: {
           averageRevenue: Math.floor(driver.revenue[currentPeriod] / driver.waybills[currentPeriod] || 0),
           efficiencyRate: `${Math.floor(Math.random() * 20) + 80}%`,
@@ -516,6 +697,13 @@ export default function HomeDashboard() {
   const companyProfit = mock.companyProfit[currentPeriod];
   const companyMargin = companyRevenue > 0 ? companyProfit / companyRevenue : 0;
 
+  const companyKpiYoy = useMemo(() => {
+    const base = { revenue: 9.2, cost: 3.6, profit: 11.8 };
+    if (currentPeriod === 'week') return { revenue: 7.8, cost: 4.9, profit: 9.4 };
+    if (currentPeriod === 'month') return { revenue: 11.5, cost: 2.9, profit: 14.2 };
+    return base;
+  }, [currentPeriod]);
+
   // 司机红黑榜数据（前5名和后5名）
   const topDrivers = mock.driverLeaderboard?.slice(0, 5) || [];
   const bottomDrivers = (mock.driverLeaderboard || [])
@@ -536,6 +724,7 @@ export default function HomeDashboard() {
         const revenue = f.revenue[currentPeriod] || f.revenue.today * (currentPeriod === 'week' ? 7 : 20);
         const cost = f.computed.totalCostByPeriod[currentPeriod];
         const profit = revenue - cost;
+        const v = f.vehicles ?? { total: f.drivers.length * 2, tractor: f.drivers.length, trailer: f.drivers.length };
         return {
           id: f.id,
           name: f.name,
@@ -546,6 +735,9 @@ export default function HomeDashboard() {
           waybillCost: f.computed.waybillTotal,
           driverReportedCost: f.computed.driverReportedTotal,
           driversCount: f.drivers.length,
+          vehicleTotal: v.total,
+          tractorCount: v.tractor,
+          trailerCount: v.trailer,
         };
       })
       .sort((a, b) => b.revenue - a.revenue);
@@ -762,131 +954,231 @@ export default function HomeDashboard() {
     </div>
   );
 
-  // 司机详情弹框组件
-  const DriverDetailModal = () => (
-    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 animate-fadeIn">
-      <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-slate-900/20 border border-white max-w-2xl w-full mx-4 p-8 animate-slideIn">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-sm">
-              <User className="w-6 h-6" />
+  // 司机详情弹框组件（近期运单分页 / 滑动切换，控制整体高度）
+  const DriverDetailModal = () => {
+    const settlementOf = (w) => w.settlementMethod ?? w.settlementType ?? '—';
+    const loadOf = (w) => w.loadTime ?? w.planStartDate ?? '—';
+    const unloadOf = (w) => w.unloadTime ?? w.planEndDate ?? '—';
+    const cargoOf = (w) => w.cargoCategory ?? '—';
+    const plateOf = (w) => w.plateNumber ?? '—';
+    const tonOf = (w) => (w.tonnage != null && w.tonnage !== '' ? `${w.tonnage} 吨` : '—');
+
+    const waybillList = selectedDriver?.waybillList ?? [];
+    const wbCount = waybillList.length;
+    const lastIdx = Math.max(0, wbCount - 1);
+    const page = wbCount ? Math.min(driverWaybillPage, lastIdx) : 0;
+    const waybill = wbCount ? waybillList[page] : null;
+    const goPrev = () => setDriverWaybillPage((p) => Math.max(0, p - 1));
+    const goNext = () => setDriverWaybillPage((p) => Math.min(lastIdx, p + 1));
+
+    const onWaybillTouchStart = (e) => {
+      driverModalTouchX.current = e.touches[0].clientX;
+    };
+    const onWaybillTouchEnd = (e) => {
+      const start = driverModalTouchX.current;
+      driverModalTouchX.current = null;
+      if (start == null || wbCount < 2) return;
+      const end = e.changedTouches[0].clientX;
+      const d = end - start;
+      if (d < -48) goNext();
+      else if (d > 48) goPrev();
+    };
+
+    return (
+      <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 animate-fadeIn p-4 md:p-6">
+        <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-slate-900/20 border border-white w-full max-w-4xl max-h-[min(90vh,760px)] flex flex-col mx-auto animate-slideIn overflow-hidden">
+          <div className="flex items-center justify-between px-6 sm:px-8 pt-6 sm:pt-8 pb-3 shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-sm">
+                <User className="w-6 h-6" />
+              </div>
+              <div>
+                <h2 className="text-xl font-black text-slate-800 tracking-tight">司机详情</h2>
+                <p className="text-xs font-bold text-slate-400 mt-1">{selectedDriver?.name} 的详细信息</p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-xl font-black text-slate-800 tracking-tight">司机详情</h2>
-              <p className="text-xs font-bold text-slate-400 mt-1">{selectedDriver?.name} 的详细信息</p>
-            </div>
+            <button
+              type="button"
+              className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-200 transition-all shrink-0"
+              onClick={() => setShowDriverModal(false)}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
-          <button 
-            type="button" 
-            className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-200 transition-all"
-            onClick={() => setShowDriverModal(false)}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-        
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-slate-50/70 rounded-[1.75rem] border border-slate-100 p-5 transition-all hover:shadow-sm">
-              <div className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">基本信息</div>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <div className="text-[13px] font-bold text-slate-600">姓名</div>
-                  <div className="text-[13px] font-black text-slate-800">{selectedDriver?.name || '—'}</div>
+
+          <div className="px-6 sm:px-8 pb-4 space-y-5 flex-1 min-h-0 overflow-y-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+              <div className="bg-slate-50/70 rounded-[1.75rem] border border-slate-100 p-4 sm:p-5 transition-all hover:shadow-sm">
+                <div className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">基本信息</div>
+                <div className="space-y-3">
+                  <div className="flex justify-between gap-4">
+                    <div className="text-[13px] font-bold text-slate-600 shrink-0">姓名</div>
+                    <div className="text-[13px] font-black text-slate-800 text-right">{selectedDriver?.name || '—'}</div>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <div className="text-[13px] font-bold text-slate-600 shrink-0">所属车队</div>
+                    <div className="text-[13px] font-black text-slate-800 text-right">{selectedDriver?.fleet || '—'}</div>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <div className="text-[13px] font-bold text-slate-600 shrink-0">运单数量</div>
+                    <div className="text-[13px] font-black text-slate-800 text-right">{selectedDriver?.waybills || 0} 单</div>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <div className="text-[13px] font-bold text-slate-600 shrink-0">总运输费</div>
+                    <div className="text-[13px] font-black text-slate-800 text-right">{formatCNY(selectedDriver?.revenue || 0)}</div>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <div className="text-[13px] font-bold text-slate-600">所属车队</div>
-                  <div className="text-[13px] font-black text-slate-800">{selectedDriver?.fleet || '—'}</div>
-                </div>
-                <div className="flex justify-between">
-                  <div className="text-[13px] font-bold text-slate-600">运单数量</div>
-                  <div className="text-[13px] font-black text-slate-800">{selectedDriver?.waybills || 0} 单</div>
-                </div>
-                <div className="flex justify-between">
-                  <div className="text-[13px] font-bold text-slate-600">总营收</div>
-                  <div className="text-[13px] font-black text-slate-800">{formatCNY(selectedDriver?.revenue || 0)}</div>
+              </div>
+
+              <div className="bg-slate-50/70 rounded-[1.75rem] border border-slate-100 p-4 sm:p-5 transition-all hover:shadow-sm">
+                <div className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">绩效指标</div>
+                <div className="space-y-3">
+                  <div className="flex justify-between gap-4">
+                    <div className="text-[13px] font-bold text-slate-600 shrink-0">平均运输费</div>
+                    <div className="text-[13px] font-black text-slate-800 text-right">{formatCNY(selectedDriver?.details?.averageRevenue || 0)}</div>
+                  </div>
                 </div>
               </div>
             </div>
-            
-            <div className="bg-slate-50/70 rounded-[1.75rem] border border-slate-100 p-5 transition-all hover:shadow-sm">
-              <div className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">绩效指标</div>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <div className="text-[13px] font-bold text-slate-600">平均营收</div>
-                  <div className="text-[13px] font-black text-slate-800">{formatCNY(selectedDriver?.details?.averageRevenue || 0)}</div>
+
+            <div className="rounded-[1.75rem] border border-slate-100 bg-slate-50/50 p-4 sm:p-5 shrink-0">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                <div className="text-[11px] font-black text-slate-400 uppercase tracking-widest">近期运单</div>
+                {wbCount > 1 ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-bold text-slate-400 tabular-nums">
+                      {page + 1} / {wbCount}
+                    </span>
+                    <div className="flex rounded-xl border border-slate-200/80 bg-white overflow-hidden shadow-sm">
+                      <button
+                        type="button"
+                        aria-label="上一条运单"
+                        disabled={page <= 0}
+                        onClick={goPrev}
+                        className="p-2 text-slate-600 hover:bg-slate-50 disabled:opacity-35 disabled:pointer-events-none transition-colors"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </button>
+                      <div className="w-px bg-slate-100" />
+                      <button
+                        type="button"
+                        aria-label="下一条运单"
+                        disabled={page >= lastIdx}
+                        onClick={goNext}
+                        className="p-2 text-slate-600 hover:bg-slate-50 disabled:opacity-35 disabled:pointer-events-none transition-colors"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+
+              {wbCount > 1 ? (
+                <div className="flex justify-center gap-1.5 mb-3">
+                  {waybillList.map((w, i) => (
+                    <button
+                      key={w.id}
+                      type="button"
+                      aria-label={`第 ${i + 1} 条运单`}
+                      aria-current={i === page ? 'true' : undefined}
+                      onClick={() => setDriverWaybillPage(i)}
+                      className={`h-1.5 rounded-full transition-all ${
+                        i === page ? 'w-5 bg-indigo-500' : 'w-1.5 bg-slate-300 hover:bg-slate-400'
+                      }`}
+                    />
+                  ))}
                 </div>
+              ) : null}
+
+              <div
+                className="touch-pan-y"
+                onTouchStart={onWaybillTouchStart}
+                onTouchEnd={onWaybillTouchEnd}
+              >
+                {waybill ? (
+                  <div className="rounded-2xl bg-white border border-slate-100 p-4 sm:p-5 shadow-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-3 pb-3 border-b border-slate-100">
+                      <span className="text-[13px] font-black text-slate-800">{waybill.id}</span>
+                      <div className="text-right">
+                        <div className="text-[11px] font-black text-slate-400 uppercase tracking-wider">运输费</div>
+                        <div className="text-[15px] font-black text-indigo-600 tabular-nums">{formatCNY(waybill.amount)}</div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-2.5 text-[13px]">
+                      <div>
+                        <div className="text-[11px] font-black text-slate-400 uppercase tracking-wider mb-0.5">客户名称</div>
+                        <div className="font-bold text-slate-700 leading-snug">{waybill.customer ?? '—'}</div>
+                      </div>
+                      <div>
+                        <div className="text-[11px] font-black text-slate-400 uppercase tracking-wider mb-0.5">路线名称</div>
+                        <div className="font-bold text-slate-700">{waybill.route ?? '—'}</div>
+                      </div>
+                      <div>
+                        <div className="text-[11px] font-black text-slate-400 uppercase tracking-wider mb-0.5">结算方式</div>
+                        <div className="font-bold text-slate-700">{settlementOf(waybill)}</div>
+                      </div>
+                      <div>
+                        <div className="text-[11px] font-black text-slate-400 uppercase tracking-wider mb-0.5">装货地</div>
+                        <div className="font-bold text-slate-700 leading-snug">{waybill.origin ?? '—'}</div>
+                      </div>
+                      <div>
+                        <div className="text-[11px] font-black text-slate-400 uppercase tracking-wider mb-0.5">卸货地</div>
+                        <div className="font-bold text-slate-700 leading-snug">{waybill.destination ?? '—'}</div>
+                      </div>
+                      <div>
+                        <div className="text-[11px] font-black text-slate-400 uppercase tracking-wider mb-0.5">装货时间</div>
+                        <div className="font-bold text-slate-700 tabular-nums">{loadOf(waybill)}</div>
+                      </div>
+                      <div>
+                        <div className="text-[11px] font-black text-slate-400 uppercase tracking-wider mb-0.5">卸货时间</div>
+                        <div className="font-bold text-slate-700 tabular-nums">{unloadOf(waybill)}</div>
+                      </div>
+                      <div>
+                        <div className="text-[11px] font-black text-slate-400 uppercase tracking-wider mb-0.5">装货品类</div>
+                        <div className="font-bold text-slate-700">{cargoOf(waybill)}</div>
+                      </div>
+                      <div>
+                        <div className="text-[11px] font-black text-slate-400 uppercase tracking-wider mb-0.5">车牌号</div>
+                        <div className="font-bold text-slate-700 tabular-nums">{plateOf(waybill)}</div>
+                      </div>
+                      <div>
+                        <div className="text-[11px] font-black text-slate-400 uppercase tracking-wider mb-0.5">吨位</div>
+                        <div className="font-bold text-slate-700 tabular-nums">{tonOf(waybill)}</div>
+                      </div>
+                    </div>
+                    {wbCount > 1 ? (
+                      <p className="text-[10px] font-bold text-slate-400 text-center mt-3 sm:hidden">左右滑动切换运单</p>
+                    ) : null}
+                  </div>
+                ) : (
+                  <div className="text-center text-[13px] font-bold text-slate-400 py-8">暂无运单数据</div>
+                )}
               </div>
             </div>
           </div>
-          
-          <div className="bg-slate-50/70 rounded-[1.75rem] border border-slate-100 p-5 transition-all hover:shadow-sm">
-            <div className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">近期运单</div>
-            <div className="overflow-x-auto">
-              <div className="min-w-[1000px]">
-                <table className="w-full text-left">
-                  <thead className="bg-white rounded-t-[1rem] border border-slate-100">
-                    <tr className="text-[11px] font-black text-slate-400 uppercase tracking-widest">
-                      <th className="px-4 py-3">运单号</th>
-                      <th className="px-4 py-3">结算金额</th>
-                      <th className="px-4 py-3">客户名称</th>
-                      <th className="px-4 py-3">路线名称</th>
-                      <th className="px-4 py-3">结算类型</th>
-                      <th className="px-4 py-3">装货地</th>
-                      <th className="px-4 py-3">卸货地</th>
-                      <th className="px-4 py-3">计划开始日期</th>
-                      <th className="px-4 py-3">计划结束日期</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {selectedDriver?.waybillList?.length > 0 ? (
-                      selectedDriver.waybillList.map(waybill => (
-                        <tr key={waybill.id} className="bg-white transition-all hover:bg-slate-50/50">
-                          <td className="px-4 py-3 text-[13px] font-bold text-slate-600">{waybill.id}</td>
-                          <td className="px-4 py-3 text-[13px] font-black text-slate-800">{formatCNY(waybill.amount)}</td>
-                          <td className="px-4 py-3 text-[13px] font-bold text-slate-600">{waybill.customer}</td>
-                          <td className="px-4 py-3 text-[13px] font-bold text-slate-600">{waybill.route}</td>
-                          <td className="px-4 py-3 text-[13px] font-bold text-slate-600">{waybill.settlementType}</td>
-                          <td className="px-4 py-3 text-[13px] font-bold text-slate-600">{waybill.origin}</td>
-                          <td className="px-4 py-3 text-[13px] font-bold text-slate-600">{waybill.destination}</td>
-                          <td className="px-4 py-3 text-[13px] font-bold text-slate-600">{waybill.planStartDate}</td>
-                          <td className="px-4 py-3 text-[13px] font-bold text-slate-600">{waybill.planEndDate}</td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr className="bg-white">
-                        <td colSpan={9} className="px-4 py-8 text-center text-[13px] font-bold text-slate-400">
-                          暂无运单数据
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+
+          <div className="px-6 sm:px-8 pb-6 pt-3 flex justify-end gap-3 border-t border-slate-100 bg-white shrink-0">
+            <button
+              type="button"
+              className="px-6 py-3 rounded-2xl text-[13px] font-black text-slate-600 bg-slate-100 hover:bg-slate-200 transition-all"
+              onClick={() => setShowDriverModal(false)}
+            >
+              关闭
+            </button>
+            <button
+              type="button"
+              className="px-6 py-3 rounded-2xl text-[13px] font-black text-white bg-indigo-600 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200"
+            >
+              查看完整记录
+            </button>
           </div>
-        </div>
-        
-        <div className="mt-8 flex justify-end gap-4">
-          <button 
-            type="button" 
-            className="px-6 py-3 rounded-2xl text-[13px] font-black text-slate-600 bg-slate-100 hover:bg-slate-200 transition-all"
-            onClick={() => setShowDriverModal(false)}
-          >
-            关闭
-          </button>
-          <button 
-            type="button" 
-            className="px-6 py-3 rounded-2xl text-[13px] font-black text-white bg-indigo-600 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200"
-          >
-            查看完整记录
-          </button>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   // 线路详情弹框组件
   const RouteDetailModal = () => (
@@ -1136,26 +1428,41 @@ export default function HomeDashboard() {
       </div>
 
       {/* 公司 KPI */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-        <KPI title="公司总体营收" value={formatCNY(companyRevenue)} sub="汇总所有车队" icon={BadgeDollarSign} tone="indigo" />
-        <KPI title="公司总体成本" value={formatCNY(companyCost)} sub="上报所有费用 + 工资" icon={Receipt} tone="rose" />
-        <KPI title="公司总体利润" value={formatCNY(companyProfit)} sub="汇总所有车队" icon={TrendingUp} tone="emerald" />
-        <KPI
-          title="成本结构"
-          value={formatCNY(costBreakdownCompany.total)}
-          sub={`车成本 ${formatCNY(costBreakdownCompany.vehicle)} · 运单成本 ${formatCNY(costBreakdownCompany.waybill)} · 驾驶员成本 ${formatCNY(costBreakdownCompany.driver)}`}
-          icon={PieChart}
-          tone="amber"
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 items-stretch">
+        <KPIWithYoy
+          title="公司总体营收"
+          value={formatCNY(companyRevenue)}
+          sub="汇总所有车队"
+          icon={BadgeDollarSign}
+          tone="indigo"
+          yoyPct={companyKpiYoy.revenue}
+          yoyGoodWhenUp
         />
-      </div>
-
-      {/* 司机红黑榜和核心线路利润排行 */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <div className="xl:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
-          <DriverLeaderboard title="司机红榜" drivers={topDrivers} isTop={true} boardKey="top" />
-          <DriverLeaderboard title="司机黑榜" drivers={bottomDrivers} isTop={false} boardKey="bottom" />
-        </div>
-        <RouteProfitRanking />
+        <KPIWithYoy
+          title="公司总体成本"
+          value={formatCNY(companyCost)}
+          sub="上报所有费用 + 工资"
+          icon={Receipt}
+          tone="rose"
+          yoyPct={companyKpiYoy.cost}
+          yoyGoodWhenUp={false}
+        />
+        <KPIWithYoy
+          title="公司总体利润"
+          value={formatCNY(companyProfit)}
+          sub="汇总所有车队"
+          icon={TrendingUp}
+          tone="emerald"
+          yoyPct={companyKpiYoy.profit}
+          yoyGoodWhenUp
+        />
+        <CostStructureCard
+          total={costBreakdownCompany.total}
+          vehicle={costBreakdownCompany.vehicle}
+          waybill={costBreakdownCompany.waybill}
+          driverFee={costBreakdownCompany.driver}
+          icon={PieChart}
+        />
       </div>
 
       {/* 车队维度：对比 + 表格 */}
@@ -1178,6 +1485,9 @@ export default function HomeDashboard() {
               <thead className="bg-slate-50/80 border-b border-slate-100">
                 <tr className="text-[12px] font-black text-slate-400 uppercase tracking-widest">
                   <th className="px-6 py-5">车队</th>
+                  <th className="px-3 py-5 whitespace-nowrap">车辆数</th>
+                  <th className="px-3 py-5 whitespace-nowrap">牵引车</th>
+                  <th className="px-3 py-5 whitespace-nowrap">挂车</th>
                   <th className="px-4 py-5">营收</th>
                   <th className="px-4 py-5">成本</th>
                   <th className="px-4 py-5">利润</th>
@@ -1207,13 +1517,16 @@ export default function HomeDashboard() {
                           </div>
                         </div>
                       </td>
+                      <td className="px-3 py-5 text-[13px] font-black text-slate-700 tabular-nums">{r.vehicleTotal}</td>
+                      <td className="px-3 py-5 text-[13px] font-black text-slate-700 tabular-nums">{r.tractorCount}</td>
+                      <td className="px-3 py-5 text-[13px] font-black text-slate-700 tabular-nums">{r.trailerCount}</td>
                       <td className="px-4 py-5 text-[13px] font-black text-slate-700">{formatCNY(r.revenue)}</td>
                       <td className="px-4 py-5 text-[13px] font-black text-rose-600">{formatCNY(r.cost)}</td>
                       <td className={`px-4 py-5 text-[13px] font-black ${r.profit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatCNY(r.profit)}</td>
                       <td className="px-6 py-5">
                         <StackedBar revenue={r.revenue} cost={r.cost} profit={r.profit} />
-                        <div className="mt-2 text-[10px] font-bold text-slate-400">
-                          车 {formatCNY(r.vehicleCost)} · 运单 {formatCNY(r.waybillCost)} · 驾驶员 {formatCNY(r.driverReportedCost)}
+                        <div className="mt-2 text-[10px] font-bold text-slate-400 leading-relaxed">
+                          车辆 {formatCNY(r.vehicleCost)} · 运单 {formatCNY(r.waybillCost)} · 司机运输费 {formatCNY(r.driverReportedCost)}
                         </div>
                       </td>
                     </tr>
@@ -1242,16 +1555,16 @@ export default function HomeDashboard() {
               <div className="mt-3 grid grid-cols-2 gap-3">
                 <div className="bg-white rounded-2xl border border-slate-100 p-4">
                   <div className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2">挂车</div>
-                  <div className="text-[13px] font-black text-slate-700">{formatCNY(selectedFleet ? sum(selectedFleet.vehicleCost.trailer) : 0)}</div>
-                  <div className="text-[11px] font-bold text-slate-400 mt-2">
-                    充电/维保/加油/审车/耗材
+                  <div className="text-[13px] font-black text-slate-700">{formatCNY(selectedFleet ? sum(selectedFleet.vehicleCost.tractor) : 0)}</div>
+                  <div className="text-[11px] font-bold text-slate-400 mt-2 leading-relaxed">
+                    维保/审车
                   </div>
                 </div>
                 <div className="bg-white rounded-2xl border border-slate-100 p-4">
                   <div className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2">牵引车</div>
-                  <div className="text-[13px] font-black text-slate-700">{formatCNY(selectedFleet ? sum(selectedFleet.vehicleCost.tractor) : 0)}</div>
-                  <div className="text-[11px] font-bold text-slate-400 mt-2">
-                    维保/审车
+                  <div className="text-[13px] font-black text-slate-700">{formatCNY(selectedFleet ? sum(selectedFleet.vehicleCost.trailer) : 0)}</div>
+                  <div className="text-[11px] font-bold text-slate-400 mt-2 leading-relaxed">
+                    充电/维保/加油/审车/耗材
                   </div>
                 </div>
               </div>
@@ -1269,7 +1582,7 @@ export default function HomeDashboard() {
 
             <div className="rounded-[1.75rem] bg-slate-50/70 border border-slate-100 p-5 shadow-inner">
               <div className="flex items-center justify-between">
-                <div className="text-[11px] font-black text-slate-400 uppercase tracking-widest">驾驶员成本（上报）</div>
+                <div className="text-[11px] font-black text-slate-400 uppercase tracking-widest">司机运输费（上报）</div>
                 <div className="text-sm font-black text-slate-800">{formatCNY(selectedFleet?.computed.driverReportedTotal ?? 0)}</div>
               </div>
               <div className="mt-3 text-[11px] font-bold text-slate-400">
@@ -1369,7 +1682,16 @@ export default function HomeDashboard() {
           </table>
         </div>
       </div>
-      
+
+      {/* 司机红黑榜和核心线路利润排行（页面底部） */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div className="xl:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+          <DriverLeaderboard title="司机红榜" drivers={topDrivers} isTop={true} boardKey="top" />
+          <DriverLeaderboard title="司机黑榜" drivers={bottomDrivers} isTop={false} boardKey="bottom" />
+        </div>
+        <RouteProfitRanking />
+      </div>
+
       {/* 司机详情弹框 */}
       {showDriverModal && <DriverDetailModal />}
       
