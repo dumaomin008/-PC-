@@ -15,6 +15,8 @@ import {
 import HomeDashboard from './HomeDashboard.jsx';
 import DailyTransportDashboard from './DailyTransportDashboard.jsx';
 import DailyRevenueDashboard from './DailyRevenueDashboard.jsx';
+import VehicleManagement from './VehicleManagement.jsx';
+import Test from './test.jsx';
 
 export default function App() {
   const [viewMode, setViewMode] = useState('list');
@@ -713,6 +715,8 @@ export default function App() {
             <DailyTransportDashboard />
           ) : activeNav === 'daily_revenue_data' ? (
             <DailyRevenueDashboard />
+          ) : activeNav === 'vehicle_management' ? (
+            <Test />
           ) : activeNav !== 'driver_management' ? (
             <PlaceholderPage />
           ) : (
